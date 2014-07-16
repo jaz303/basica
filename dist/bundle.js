@@ -1584,7 +1584,7 @@ var S_INIT              = 0,
 
 var DEFAULT_PROMPT      = '> ';
 var DEFAULT_PROMPT_NONE = null;
-var ECHO_HANDLER        = function(console, cmd) { console.print(cmd); console.newline(); }
+var NULL_HANDLER        = function(console, cmd) { console.newline(); }
 
 //
 // Space Handling
@@ -1617,7 +1617,8 @@ function Console(el, opts) {
     this.state          = S_INIT;
     this._textarea      = null;
     this._prompt        = null;
-    this._handler       = opts.handler || ECHO_HANDLER;
+    this._handler       = opts.handler || NULL_HANDLER;
+    this._cancel        = opts.cancel || NULL_HANDLER;
     this._cursor        = null;
     this._inputLine     = null;
 
@@ -1644,12 +1645,18 @@ function Console(el, opts) {
         this.print(opts.greeting);
     }
 
-    this.newline();
-
 }
 
 //
 // Public API
+
+Console.prototype.setHandler = function(handler) {
+    this._handler = handler || NULL_HANDLER;
+}
+
+Console.prototype.setPrompt = function(prompt) {
+    this._prompt = prompt;
+}
 
 Console.prototype.getInput = function() {
     
@@ -1663,8 +1670,6 @@ Console.prototype.getInput = function() {
 }
 
 Console.prototype.print = function(str) {
-
-    if (!str) return;
     
     var start = 0, end = str.indexOf("\n", start);
     while (end >= 0) {
@@ -1795,7 +1800,7 @@ Console.prototype._keyup = function(evt) {
             if (this.state === S_INPUT) {
                 this.clearInput();
             } else if (this.state === S_PROCESSING) {
-                // send cancel message to handler?
+                this._cancel(this);
             }
             break;
     }
@@ -1806,10 +1811,13 @@ Console.prototype._keypress = function(evt) {
 
     if (this.state === S_INPUT) {
 
+        // Enter
         if (evt.charCode === 13 || evt.keyCode === 13) {
             evt.preventDefault();
             this._clearSelection();
             input = this.getInput();
+            du.removeClass(this._cursor, 'cursor');
+            this._cursor = null;
             this.state = S_PROCESSING;
             this._handler(this, input);
             return;
@@ -1916,7 +1924,7 @@ Console.prototype._appendLine = function(str) {
     line.appendChild(document.createTextNode(replaceLogicalSpaceWithVisualSpace(str)));
     line.appendChild(document.createElement('br'));
 
-    this.root.appendChild(line);
+    this._appendRaw(line);
 
 }
 
@@ -1926,8 +1934,17 @@ Console.prototype._appendElement = function(el, className) {
     wrap.className = 'item ' + (className || '');
     wrap.appendChild(el);
 
-    this.root.appendChild(wrap);
+    this._appendRaw(el);
 
+}
+
+Console.prototype._appendRaw = function(el) {
+    if (this.state === S_INPUT) {
+        this.root.insertBefore(el, this._inputLine);
+    } else {
+        this.root.appendChild(el);
+    }
+    this._scrollToBottom();
 }
 
 Console.prototype._insertStringBeforeCursor = function(str) {
@@ -2242,11 +2259,11 @@ function extend(things) {
 },{"./impl/classes":9,"./impl/events":10,"./impl/layout":11,"./impl/matches_selector":12,"./impl/node":13,"./impl/text":14,"./impl/viewport":15}],17:[function(require,module,exports){
 module.exports={
   "name": "basica",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "BASIC interpreter",
   "main": "index.js",
   "dependencies": {
-    "echo-chamber": "~0.1.2",
+    "echo-chamber": "~0.3.0",
     "domutil": "~0.3.5",
     "pegjs": "~0.8.0"
   },
