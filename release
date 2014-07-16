@@ -2,5 +2,7 @@
 
 npm version $1
 make
+git add dist/bundle.js
+git commit -m "update bundle"
 git push origin master --tags
 npm publish
