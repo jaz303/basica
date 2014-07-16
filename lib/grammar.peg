@@ -3,6 +3,9 @@
 _
     = [ \t]*
 
+__
+	= [ \t]+
+
 non_zero_digit
     = [1-9]
 
@@ -13,7 +16,7 @@ float
     = $ ( non_zero_digit digit* '.' digit+ )
 
 integer
-    = $ ( non_zero_digit digit* )
+    = $ ( digit+ )
 
 TERM
 	= _ "\n"
@@ -41,10 +44,46 @@ Statements
 	}
 
 Statement
+	= IfStatement
+	/ AssignStatement
+	/ CommandStatement
+
+IfStatement
+	= [iI][fF] __ exp:Expression __ b:ConsequentPart e:ElsePart? {
+		return { 
+			type: "if",
+			condition: exp,
+			bodyPart: b,
+			elsePart: e || null
+		};
+	}
+
+ConsequentPart
+	= [tT][hH][eE][nN] __ line:Integer _ {
+		return { type: "command", name: "GOTO", args: [line] };
+	}
+	/ [gG][oO][tT][oO] __ line:Integer _ {
+		return { type: "command", name: "GOTO", args: [line] };
+	}
+	/ [tT][hH][eE][nN] __ stmt:Statement {
+		return stmt;
+	}
+
+ElsePart
+	= [eE][lL][sS][eE] __ line:Integer _ {
+		return { type: "command", name: "GOTO", args: [line] };
+	}
+	/ [eE][lL][sS][eE] __ stmt:Statement {
+		return stmt;
+	}
+
+AssignStatement
 	= left:Ident _ '=' _ right:Expression _ {
 		return { type: "assign", left: left, right: right };
 	}
-	/ name:CommandName _ args:ArgList? {
+
+CommandStatement
+	= name:CommandName _ args:ArgList? {
 		return { type: "command", name: name, args: args || [] };
 	}
 
@@ -76,7 +115,7 @@ Float
 	= val:float { return parseFloat(val); }
 
 Integer
-	= val:integer { return parseInt(val, 10) }
+	= val:integer { return parseInt(val, 10); }
 
 String
 	= '"' str:$( StringChar* ) '"' { return str; }
