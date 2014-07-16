@@ -1,0 +1,6 @@
+#!/bin/bash
+
+npm version $1
+make
+git push origin master --tags
+npm publish
