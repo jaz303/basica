@@ -18,249 +18,249 @@ function basica(el, opts) {
 },{"./lib/Machine":3}],3:[function(require,module,exports){
 module.exports = Machine;
 
-var Console 		= require('echo-chamber');
-var parser 			= require('./parser');
-var builtins		= require('./builtins');
-var Program 		= require('./Program');
-var VERSION 		= require('../package.json').version;
+var Console         = require('echo-chamber');
+var parser          = require('./parser');
+var builtins        = require('./builtins');
+var Program         = require('./Program');
+var VERSION         = require('../package.json').version;
 
-var USER 			= 1,
-	FUNCTION 		= 2,
-	COMMAND 		= 3;
+var USER            = 1,
+    FUNCTION        = 2,
+    COMMAND         = 3;
 
-var E 				= require('./errors');
-var SYNTAX_ERROR	= E.SYNTAX_ERROR;
-var TYPE_MISMATCH	= E.TYPE_MISMATCH;
+var E               = require('./errors');
+var SYNTAX_ERROR    = E.SYNTAX_ERROR;
+var TYPE_MISMATCH   = E.TYPE_MISMATCH;
 
 function Machine(el, opts) {
 
-	var opts = opts || {};
+    var opts = opts || {};
 
-	opts.prompt = false;
-	opts.handler = this.evaluate.bind(this);
-	opts.cancel = this.cancel.bind(this);
-	opts.greeting = " Curious Chip presents\n\n BASICA " + VERSION + "\n";
+    opts.prompt = false;
+    opts.handler = this.evaluate.bind(this);
+    opts.cancel = this.cancel.bind(this);
+    opts.greeting = " Curious Chip presents\n\n BASICA " + VERSION + "\n";
 
-	this.console = new Console(el, opts);
+    this.console = new Console(el, opts);
 
-	this.running = false;
-	this.pc = -1;
+    this.running = false;
+    this.pc = -1;
 
-	this.reset();
-	this.newCommand();
+    this.reset();
+    this.newCommand();
 
 }
 
 Machine.prototype.evaluate = function(konsole, command) {
-	
-	if (command.match(/^\s*$/)) {
-		konsole.newline();
-		return;
-	}
+    
+    if (command.match(/^\s*$/)) {
+        konsole.newline();
+        return;
+    }
 
-	try {
-		
-		var parsed = parser.parse(command + "\n", {startRule: "Line"});
+    try {
+        
+        var parsed = parser.parse(command + "\n", {startRule: "Line"});
 
-		if (parsed.line !== null) {
-			this.program.insertLine(parsed.line, parsed.statements);
-			konsole.newline();
-		} else {
-			this.evalStatements(parsed.statements);
-			if (!this.running) {
-				this.newCommand();	
-			}
-		}
+        if (parsed.line !== null) {
+            this.program.insertLine(parsed.line, parsed.statements);
+            konsole.newline();
+        } else {
+            this.evalStatements(parsed.statements);
+            if (!this.running) {
+                this.newCommand();  
+            }
+        }
 
-	} catch (e) {
-		this.printError(E.SYNTAX_ERROR);
-		this.newCommand();
-		console.log(e);
-	}
+    } catch (e) {
+        this.printError(E.SYNTAX_ERROR);
+        this.newCommand();
+        console.log(e);
+    }
 
 }
 
 Machine.prototype.cancel = function(konsole) {
-	if (this.running) {
-		this.running = false;
-		this.console.print("** BREAK **");
-	}
+    if (this.running) {
+        this.running = false;
+        this.console.print("** BREAK **");
+    }
 }
 
 Machine.prototype.reset = function() {
-	this.program = new Program();
-	this.symbols = {};
-	this.types = {};
+    this.program = new Program();
+    this.symbols = {};
+    this.types = {};
 
-	builtins(this);
+    builtins(this);
 }
 
 Machine.prototype.jump = function(line) {
 
-	if (this.program.dirty) {
-		this.program.reindex();
-	}
+    if (this.program.dirty) {
+        this.program.reindex();
+    }
 
-	if (line === 0) {
-		this.pc = 0;
-	} else {
-		this.pc = this.program.indexOfLine(line);
-	}
+    if (line === 0) {
+        this.pc = 0;
+    } else {
+        this.pc = this.program.indexOfLine(line);
+    }
 
-	this.jumped = true;
+    this.jumped = true;
 
-	if (!this.running) {
-		this.start();
-	}
-	
+    if (!this.running) {
+        this.start();
+    }
+    
 }
 
 Machine.prototype.start = function() {
 
-	if (this.running) {
-		return;
-	}
+    if (this.running) {
+        return;
+    }
 
-	this.running = true;
+    this.running = true;
 
-	var self = this;
+    var self = this;
 
-	var _tick = function() {
+    var _tick = function() {
 
-		if (!this.running) {
-			this.newCommand();
-			return;
-		}
+        if (!this.running) {
+            this.newCommand();
+            return;
+        }
 
-		this.jumped = false;
+        this.jumped = false;
 
-		var stmts = this.program.getLineAtIndex(this.pc++);
-		if (!stmts) {
-			this.running = false;
-		} else {
-			this.evalStatements(stmts);
-		}
+        var stmts = this.program.getLineAtIndex(this.pc++);
+        if (!stmts) {
+            this.running = false;
+        } else {
+            this.evalStatements(stmts);
+        }
 
-		setTimeout(_tick, 0);
+        setTimeout(_tick, 0);
 
-	}.bind(this);
+    }.bind(this);
 
-	setTimeout(_tick, 0);
+    setTimeout(_tick, 0);
 
 }
 
 Machine.prototype.function = function(name, fn, vararg) {
-	fn.vararg = !!vararg;
-	this.symbols[name] = fn;
-	this.types[name] = FUNCTION;
+    fn.vararg = !!vararg;
+    this.symbols[name] = fn;
+    this.types[name] = FUNCTION;
 }
 
 Machine.prototype.command = function(name, fn, vararg) {
-	fn.vararg = !!vararg;
-	this.symbols[name] = fn;
-	this.types[name] = COMMAND;
+    fn.vararg = !!vararg;
+    this.symbols[name] = fn;
+    this.types[name] = COMMAND;
 }
 
 Machine.prototype.evalStatements = function(stmts) {
-	try {
-		for (var i = 0; i < stmts.length; ++i) {
-			this.evalStatement(stmts[i]);
-			if (this.jumped) {
-				return;
-			}
-		}
-	} catch (e) {
-		if (e === E.SYNTAX_ERROR || e === E.TYPE_MISMATCH || e === E.NO_SUCH_LINE) {
-			this.printError(e);
-		} else {
-			throw e;
-		}
-	}
+    try {
+        for (var i = 0; i < stmts.length; ++i) {
+            this.evalStatement(stmts[i]);
+            if (this.jumped) {
+                return;
+            }
+        }
+    } catch (e) {
+        if (e === E.SYNTAX_ERROR || e === E.TYPE_MISMATCH || e === E.NO_SUCH_LINE) {
+            this.printError(e);
+        } else {
+            throw e;
+        }
+    }
 }
 
 Machine.prototype.evalStatement = function(stmt) {
-	switch (stmt.type) {
-		case 'command':
-			var name = stmt.name;
-			if (this.types[name] !== COMMAND) {
-				throw SYNTAX_ERROR;
-			}
-			var cmd = this.symbols[name];
-			var args = stmt.args.map(function(a) {
-				return this.evalExpression(a);
-			}, this);
-			if (!cmd.vararg && args.length !== cmd.length) {
-				throw SYNTAX_ERROR;
-			}
-			cmd.apply(this, args);
-			break;
-		case 'assign':
-			var sym = stmt.left.name;
-			var type = this.types[sym];
-			if (type === USER || !type) {
-				var val = this.evalExpression(stmt.right);
-				var tag = sym.charAt(sym.length-1);
-				if (tag === '$' && typeof val !== 'string') {
-					throw TYPE_MISMATCH;
-				} else if (tag === '%') {
-					if (typeof val !== 'number') {
-						throw TYPE_MISMATCH;
-					}
-					val |= 0;
-				}
-				this.symbols[sym] = val;
-				if (!type) this.types[sym] = USER;
-			} else {
-				throw SYNTAX_ERROR;
-			}
-			break;
-	}
+    switch (stmt.type) {
+        case 'command':
+            var name = stmt.name;
+            if (this.types[name] !== COMMAND) {
+                throw SYNTAX_ERROR;
+            }
+            var cmd = this.symbols[name];
+            var args = stmt.args.map(function(a) {
+                return this.evalExpression(a);
+            }, this);
+            if (!cmd.vararg && args.length !== cmd.length) {
+                throw SYNTAX_ERROR;
+            }
+            cmd.apply(this, args);
+            break;
+        case 'assign':
+            var sym = stmt.left.name;
+            var type = this.types[sym];
+            if (type === USER || !type) {
+                var val = this.evalExpression(stmt.right);
+                var tag = sym.charAt(sym.length-1);
+                if (tag === '$' && typeof val !== 'string') {
+                    throw TYPE_MISMATCH;
+                } else if (tag === '%') {
+                    if (typeof val !== 'number') {
+                        throw TYPE_MISMATCH;
+                    }
+                    val |= 0;
+                }
+                this.symbols[sym] = val;
+                if (!type) this.types[sym] = USER;
+            } else {
+                throw SYNTAX_ERROR;
+            }
+            break;
+    }
 }
 
 Machine.prototype.evalExpression = function(exp) {
-	if (typeof exp === 'number' || typeof exp === 'string') {
-		return exp;
-	} else if (exp.type === 'ident') {
-		var name = exp.name;
-		var type = this.types[name];
-		if (type === FUNCTION) {
-			return this.symbols[name].call(this);
-		} else if (type === USER) {
-			return this.symbols[name];
-		} else if (!type) {
-			return (name.charAt(name.length - 1) === '$') ? '' : 0;
-		} else {
-			throw SYNTAX_ERROR;
-		}
-	} else if (exp.type === 'call') {
-		var name = exp.name;
-		var type = this.types[name];
-		if (type !== FUNCTION) {
-			throw SYNTAX_ERROR;
-		}
-		return this.symbols[name].apply(this, exp.args.map(function(a) {
-			return this.evalExpression(a);
-		}, this));
-	}
+    if (typeof exp === 'number' || typeof exp === 'string') {
+        return exp;
+    } else if (exp.type === 'ident') {
+        var name = exp.name;
+        var type = this.types[name];
+        if (type === FUNCTION) {
+            return this.symbols[name].call(this);
+        } else if (type === USER) {
+            return this.symbols[name];
+        } else if (!type) {
+            return (name.charAt(name.length - 1) === '$') ? '' : 0;
+        } else {
+            throw SYNTAX_ERROR;
+        }
+    } else if (exp.type === 'call') {
+        var name = exp.name;
+        var type = this.types[name];
+        if (type !== FUNCTION) {
+            throw SYNTAX_ERROR;
+        }
+        return this.symbols[name].apply(this, exp.args.map(function(a) {
+            return this.evalExpression(a);
+        }, this));
+    }
 }
 
 Machine.prototype.printError = function(err) {
-	this.console.print(this._errorMessageForError(err));
+    this.console.print(this._errorMessageForError(err));
 }
 
 Machine.prototype._errorMessageForError = function(err) {
-	if (err === E.SYNTAX_ERROR) {
-		return "Syntax error";
-	} else if (err === E.TYPE_MISMATCH) {
-		return "Type mismatch";
-	} else if (err === E.NO_SUCH_LINE) {
-		return "Line does not exist";
-	}
+    if (err === E.SYNTAX_ERROR) {
+        return "Syntax error";
+    } else if (err === E.TYPE_MISMATCH) {
+        return "Type mismatch";
+    } else if (err === E.NO_SUCH_LINE) {
+        return "Line does not exist";
+    }
 }
 
 Machine.prototype.newCommand = function() {
-	this.console.print("Ready");
-	this.console.newline();
+    this.console.print("Ready");
+    this.console.newline();
 }
 },{"../package.json":17,"./Program":4,"./builtins":5,"./errors":6,"./parser":7,"echo-chamber":8}],4:[function(require,module,exports){
 module.exports = Program;
@@ -268,54 +268,54 @@ module.exports = Program;
 var E = require('./errors');
 
 function Program() {
-	this.lines = [];
-	this.lineMax = -1;
-	this.index = null;
-	this.dirty = true;
+    this.lines = [];
+    this.lineMax = -1;
+    this.index = null;
+    this.dirty = true;
 }
 
 Program.prototype.insertLine = function(number, statements) {
-	this.dirty = true;
-	if (number > this.lineMax) {
-		this.lines.push([number, statements]);
-		this.lineMax = number;
-	} else if (number === this.lineMax) {
-		this.lines[this.lines.length-1][1] = statements;
-	} else {
-		// TODO: binary search!
-		for (var i = 0; i < this.lines.length; ++i) {
-			if (number === this.lines[i][0]) {
-				this.lines[i][1] = statements;
-				break;
-			} else if (number < this.lines[i][0]) {
-				this.lines.splice(i, 0, [number, statements]);
-				break;
-			}
-		}
-	}
+    this.dirty = true;
+    if (number > this.lineMax) {
+        this.lines.push([number, statements]);
+        this.lineMax = number;
+    } else if (number === this.lineMax) {
+        this.lines[this.lines.length-1][1] = statements;
+    } else {
+        // TODO: binary search!
+        for (var i = 0; i < this.lines.length; ++i) {
+            if (number === this.lines[i][0]) {
+                this.lines[i][1] = statements;
+                break;
+            } else if (number < this.lines[i][0]) {
+                this.lines.splice(i, 0, [number, statements]);
+                break;
+            }
+        }
+    }
 }
 
 Program.prototype.indexOfLine = function(line) {
-	var ix = this.index[line];
-	if (typeof ix !== 'number') {
-		throw E.NO_SUCH_LINE;
-	}
-	return ix;
+    var ix = this.index[line];
+    if (typeof ix !== 'number') {
+        throw E.NO_SUCH_LINE;
+    }
+    return ix;
 }
 
 Program.prototype.getLineAtIndex = function(index) {
-	var line = this.lines[index];
-	return line ? line[1] : null;
+    var line = this.lines[index];
+    return line ? line[1] : null;
 }
 
 Program.prototype.reindex = function() {
 
-	this.index = {};
-	this.lines.forEach(function(ln, ix) {
-		this.index[ln[0]] = ix;
-	}, this);
+    this.index = {};
+    this.lines.forEach(function(ln, ix) {
+        this.index[ln[0]] = ix;
+    }, this);
 
-	this.dirty = false;
+    this.dirty = false;
 
 }
 },{"./errors":6}],5:[function(require,module,exports){
@@ -323,79 +323,79 @@ var E = require('./errors');
 
 module.exports = function(vm) {
 
-	vm.command("GOTO", function(line) {
-		if (typeof line !== 'number')
-			throw E.SYNTAX_ERROR;
-		this.jump(line);
-	});
+    vm.command("GOTO", function(line) {
+        if (typeof line !== 'number')
+            throw E.SYNTAX_ERROR;
+        this.jump(line);
+    });
 
-	vm.command("LIST", function() {
-		
-	});
+    vm.command("LIST", function() {
+        
+    });
 
-	vm.function("LOWER$", function(str) {
-		return ('' + str).toLowerCase();
-	});
+    vm.function("LOWER$", function(str) {
+        return ('' + str).toLowerCase();
+    });
 
-	vm.function("MAX", function() {
-		return Math.max.apply(null, arguments);
-	}, true);
+    vm.function("MAX", function() {
+        return Math.max.apply(null, arguments);
+    }, true);
 
-	vm.function("MID$", function(str, start, len) {
-		return str.substring(start, len);
-	});
+    vm.function("MID$", function(str, start, len) {
+        return str.substring(start, len);
+    });
 
-	vm.function("MIN", function() {
-		return Math.min.apply(null, arguments);
-	}, true)
+    vm.function("MIN", function() {
+        return Math.min.apply(null, arguments);
+    }, true)
 
-	vm.command("NEW", function() {
-		this.reset();
-	});
+    vm.command("NEW", function() {
+        this.reset();
+    });
 
-	vm.function("PI", function() {
-		return Math.PI;
-	});
+    vm.function("PI", function() {
+        return Math.PI;
+    });
 
-	vm.function("RND", function() {
-		return Math.random();
-	});
+    vm.function("RND", function() {
+        return Math.random();
+    });
 
-	vm.command("PRINT", function(str) {
-		if (arguments.length === 0) {
-			this.console.print('');
-		} else if (typeof str === 'number') {
-			this.console.print(' ' + str);
-		} else {
-			this.console.print(str);	
-		}
-	}, true);
+    vm.command("PRINT", function(str) {
+        if (arguments.length === 0) {
+            this.console.print('');
+        } else if (typeof str === 'number') {
+            this.console.print(' ' + str);
+        } else {
+            this.console.print(str);    
+        }
+    }, true);
 
-	vm.function("SGN", function(x) {
-		return (x < 0) ? -1 : (x > 0 ? 1 : 0);
-	});
+    vm.function("SGN", function(x) {
+        return (x < 0) ? -1 : (x > 0 ? 1 : 0);
+    });
 
-	vm.function("SQR", function(x) {
-		return Math.sqrt(x);
-	});
+    vm.function("SQR", function(x) {
+        return Math.sqrt(x);
+    });
 
-	vm.function("STR$", function(x) {
-		return '' + x;
-	});
+    vm.function("STR$", function(x) {
+        return '' + x;
+    });
 
-	vm.function("UPPER$", function(str) {
-		return ('' + str).toUpperCase();
-	});
+    vm.function("UPPER$", function(str) {
+        return ('' + str).toUpperCase();
+    });
 
-	vm.command("RUN", function() {
-		this.jump(0);
-	});
+    vm.command("RUN", function() {
+        this.jump(0);
+    });
 
 }
 },{"./errors":6}],6:[function(require,module,exports){
-exports.SYNTAX_ERROR 	= {};
-exports.TYPE_MISMATCH	= {};
-exports.NO_SUCH_LINE 	= {};
+exports.SYNTAX_ERROR    = {};
+exports.TYPE_MISMATCH   = {};
+exports.NO_SUCH_LINE    = {};
 },{}],7:[function(require,module,exports){
 module.exports = (function() {
   /*
@@ -445,28 +445,28 @@ module.exports = (function() {
         peg$c11 = { type: "literal", value: "\n", description: "\"\\n\"" },
         peg$c12 = function(x) { return x; },
         peg$c13 = function(line, stmts) {
-        		return {
-        			line: parseInt(line, 10),
-        			statements: stmts.statements
-        		};
-        	},
+                return {
+                    line: parseInt(line, 10),
+                    statements: stmts.statements
+                };
+            },
         peg$c14 = ":",
         peg$c15 = { type: "literal", value: ":", description: "\":\"" },
         peg$c16 = function(head, tail) {
-        		return {
-        			line: null,
-        			statements: [head].concat(tail.map(function(t) { return t[2]; }))
-        		};
-        	},
+                return {
+                    line: null,
+                    statements: [head].concat(tail.map(function(t) { return t[2]; }))
+                };
+            },
         peg$c17 = "=",
         peg$c18 = { type: "literal", value: "=", description: "\"=\"" },
         peg$c19 = function(left, right) {
-        		return { type: "assign", left: left, right: right };
-        	},
+                return { type: "assign", left: left, right: right };
+            },
         peg$c20 = null,
         peg$c21 = function(name, args) {
-        		return { type: "command", name: name, args: args || [] };
-        	},
+                return { type: "command", name: name, args: args || [] };
+            },
         peg$c22 = /^[a-zA-Z]/,
         peg$c23 = { type: "class", value: "[a-zA-Z]", description: "[a-zA-Z]" },
         peg$c24 = /^[a-zA-Z0-9]/,
@@ -474,16 +474,16 @@ module.exports = (function() {
         peg$c26 = /^[$%]/,
         peg$c27 = { type: "class", value: "[$%]", description: "[$%]" },
         peg$c28 = function(name) {
-        		return name.toUpperCase();
-        	},
+                return name.toUpperCase();
+            },
         peg$c29 = function(name) {
-        		return name.toUpperCase();A
-        	},
+                return name.toUpperCase();A
+            },
         peg$c30 = ",",
         peg$c31 = { type: "literal", value: ",", description: "\",\"" },
         peg$c32 = function(head, tail) {
-        		return [head].concat(tail.map(function(t) { return t[2]; }));
-        	},
+                return [head].concat(tail.map(function(t) { return t[2]; }));
+            },
         peg$c33 = "(",
         peg$c34 = { type: "literal", value: "(", description: "\"(\"" },
         peg$c35 = ")",
@@ -509,8 +509,8 @@ module.exports = (function() {
         peg$c55 = /^[^"]/,
         peg$c56 = { type: "class", value: "[^\"]", description: "[^\"]" },
         peg$c57 = function(name) {
-        		return { "type": "ident", name: name }
-        	},
+                return { "type": "ident", name: name }
+            },
 
         peg$currPos          = 0,
         peg$reportedPos      = 0,
