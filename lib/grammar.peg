@@ -1,0 +1,68 @@
+/* Helpers */
+
+_
+    = [ \t]*
+
+non_zero_digit
+    = [1-9]
+
+digit
+    = [0-9]
+
+float
+    = $ ( non_zero_digit digit* '.' digit+ )
+
+integer
+    = $ ( non_zero_digit digit* )
+
+TERM
+	= _ "\n"
+
+/* Productions */
+
+Line
+	= NumberedLine
+	/ Statements TERM
+
+NumberedLine
+	= _ integer Statements TERM
+
+Statements
+	= Statement (':' _ Statement)*
+
+Statement
+	= VariableName _ '=' _ Expression
+	/ CommandName _ ArgList?
+
+VariableName
+	= $( [a-zA-Z] [a-zA-Z0-9]* [$%]? )
+
+CommandName
+	= $( [a-zA-Z] [a-zA-Z0-9]* )
+
+ArgList
+	= Expression _ (',' _ Expression _)*
+
+FunctionArgs
+	= '(' _ ArgList ')' _
+
+Expression
+	= Float
+	/ Integer
+	/ String
+
+Float
+	= val:float { return parseFloat(val); }
+
+Integer
+	= val:integer { return parseInt(val, 10) }
+
+String
+	= '"' $( StringChar* ) '"'
+
+StringChar
+	= '\\n' { return "\n"; }
+	/ '\\t' { return "\t"; }
+	/ '\\"' { return '"'; }
+	/ '\\\\' { return "\\"; }
+	/ [^\"]

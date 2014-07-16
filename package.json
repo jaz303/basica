@@ -1,0 +1,23 @@
+{
+  "name": "basica",
+  "version": "0.0.0",
+  "description": "BASIC interpreter",
+  "main": "index.js",
+  "dependencies": {
+    "echo-chamber": "~0.1.2",
+    "domutil": "~0.3.5",
+    "pegjs": "~0.8.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "basic",
+    "interpreter",
+    "programming",
+    "language"
+  ],
+  "author": "Jason Frame <jason@onehackoranother.com> (http://jasonframe.co.uk)",
+  "license": "ISC"
+}

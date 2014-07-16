@@ -1,0 +1,79 @@
+@font-face {
+  font-family: 'press-start'; src: url('prstartk.ttf') format('truetype');
+}
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+}
+
+body {
+  background-color: #000065;
+  color: #FFFF00;
+  font: 14px/1.4 "press-start";
+}
+
+/* Console Defaults */
+
+.console {
+	line-height: 1.2;
+  overflow: auto;
+}
+
+.console:focus {
+	outline: none;
+}
+
+/* Shim text area for receiving keyboard input */
+.console > textarea {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	border: none;
+	overflow: hidden;
+  background: none;
+}
+
+.console > textarea:focus {
+	outline: none;
+}
+
+/* Line or other item */
+.console > .item {}
+
+/* Text line */
+.console > .text {
+  word-wrap: break-word;
+}
+
+/* Line currently receiving input */
+.console > .input {}
+
+/* Prompt */
+.console > .item > .prompt {}
+
+/* Cursor */
+.console > .input > .cursor {}
+
+/* Customisation */
+
+#console {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 15px;
+  border: 5px solid #585BB3;
+}
+
+#console > .input > .cursor {
+	background-color: #ffff00;
+	color: #000065;
+}

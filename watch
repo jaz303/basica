@@ -1,0 +1,3 @@
+#!/bin/bash
+
+watchify -o dist/bundle.js app/main.js
