@@ -21,35 +21,56 @@ TERM
 /* Productions */
 
 Line
-	= NumberedLine
-	/ Statements TERM
+	= _ x:NumberedLine TERM { return x; }
+	/ _ x:Statements TERM { return x; }
 
 NumberedLine
-	= _ integer Statements TERM
+	= line:integer _ stmts:Statements {
+		return {
+			line: parseInt(line, 10),
+			statements: stmts.statements
+		};
+	}
 
 Statements
-	= Statement (':' _ Statement)*
+	= head:Statement tail:(':' _ Statement)* {
+		return {
+			line: null,
+			statements: [head].concat(tail.map(function(t) { return t[2]; }))
+		};
+	}
 
 Statement
-	= VariableName _ '=' _ Expression
-	/ CommandName _ ArgList?
+	= left:Ident _ '=' _ right:Expression _ {
+		return { type: "assign", left: left, right: right };
+	}
+	/ name:CommandName _ args:ArgList? {
+		return { type: "command", name: name, args: args || [] };
+	}
 
 VariableName
-	= $( [a-zA-Z] [a-zA-Z0-9]* [$%]? )
+	= name:$( [a-zA-Z] [a-zA-Z0-9]* [$%]? ) {
+		return name.toUpperCase();
+	}
 
 CommandName
-	= $( [a-zA-Z] [a-zA-Z0-9]* )
+	= name:$( [a-zA-Z] [a-zA-Z0-9]* ) {
+		return name.toUpperCase();A
+	}
 
 ArgList
-	= Expression _ (',' _ Expression _)*
+	= head:Expression _ tail:(',' _ Expression _)* {
+		return [head].concat(tail.map(function(t) { return t[2]; }));
+	}
 
 FunctionArgs
-	= '(' _ ArgList ')' _
+	= '(' _ args:ArgList ')' _ { return args; }
 
 Expression
 	= Float
 	/ Integer
 	/ String
+	/ Ident
 
 Float
 	= val:float { return parseFloat(val); }
@@ -58,7 +79,7 @@ Integer
 	= val:integer { return parseInt(val, 10) }
 
 String
-	= '"' $( StringChar* ) '"'
+	= '"' str:$( StringChar* ) '"' { return str; }
 
 StringChar
 	= '\\n' { return "\n"; }
@@ -66,3 +87,8 @@ StringChar
 	/ '\\"' { return '"'; }
 	/ '\\\\' { return "\\"; }
 	/ [^\"]
+
+Ident
+	= name:VariableName {
+		return { "type": "ident", name: name }
+	}
