@@ -4,6 +4,19 @@
 	function makeGoto(line) {
 		return { type: "command", name: "GOTO", args: [line] };
 	}
+
+	function makeBinaryOperator(head, rest, rix) {
+	    var result = head;
+	    rest.forEach(function(i) {
+	    	result = {
+	    		type: "binary-op",
+	    		op: i[1],
+	    		left: result,
+	    		right: i[rix]
+	    	}
+	    });
+	    return result;
+	}
 }
 
 _
@@ -102,22 +115,55 @@ ArgList
 	}
 
 Expression
-	= AdditiveExpression
+	= ComparisonExpression
+
+ComparisonExpression
+	= head:BitwiseOrExpression tail:(_ ComparisonOp _ BitwiseOrExpression)* {
+		return makeBinaryOperator(head, tail, 3);
+	}
+
+ComparisonOp
+	= $( '<' )
+	/ $( '<=' )
+	/ $( '>' )
+	/ $( '>=' )
+	/ $( '<>' )
+	/ $( '=' )
+
+BitwiseOrExpression
+	= head:BitwiseXorExpression tail:(_ 'OR' __ BitwiseXorExpression)* {
+		return makeBinaryOperator(head, tail, 3);
+	}
+
+BitwiseXorExpression
+	= head:BitwiseAndExpression tail:(_ 'XOR' __ BitwiseAndExpression)* {
+		return makeBinaryOperator(head, tail, 3);
+	}
+
+BitwiseAndExpression
+	= head:AdditiveExpression tail:(_ 'AND' __ AdditiveExpression)* {
+		return makeBinaryOperator(head, tail, 3);
+	}
 
 AdditiveExpression
-	= head:IntegerDivisionExpression tail:([-+] _ IntegerDivisionExpression)* {
-		return head;
+	= head:MultiplicativeExpression tail:(_ AdditiveOp _ MultiplicativeExpression)* {
+		return makeBinaryOperator(head, tail, 3);
 	}
 
-IntegerDivisionExpression
-	= head:MultiplicativeExpression tail:("\\" _ MultiplicativeExpression)* {
-		return head;
-	}
+AdditiveOp
+	= '+'
+	/ '-'
 
 MultiplicativeExpression
-	= head:UnaryExpression tail:([*/] _ UnaryExpression)* {
-		return head;
+	= head:UnaryExpression tail:(_ MultiplicativeOp UnaryExpression)* {
+		return makeBinaryOperator(head, tail, 2);
 	}
+
+MultiplicativeOp
+	= '*' _ { return '*'; }
+	/ '/' _ { return '/'; }
+	/ '\\' _ { return '\\'; }
+	/ [mM][oO][dD] __ { return 'MOD'; }
 
 UnaryExpression
 	= [nN][oO][tT] __ exp:UnaryExpression {
@@ -126,10 +172,18 @@ UnaryExpression
 	/ '-' _ exp:UnaryExpression {
 		return { type: "negate", exp: exp };
 	}
-	/ v:FunctionCall _ { return v; }
+	/ PowExpression
+
+PowExpression
+	= head:FunctionCall tail:(_ PowOp __ FunctionCall)* {
+		return makeBinaryOperator(head, tail, 3);
+	}
+
+PowOp
+	= [eE][xX][pP] { return 'EXP'; }
 
 FunctionCall
-	= name:function_name '(' _ args:ArgList ')' _ {
+	= name:function_name '(' _ args:ArgList ')' {
 		return {
 			type: "function-call",
 			name: name.toUpperCase(),
@@ -139,11 +193,11 @@ FunctionCall
 	/ Atom
 
 Atom
-	= Float
-	/ Integer
-	/ String
-	/ Ident
-	/ '(' _ exp:Expression _ ')' _ { return exp; }
+	= v:Float 						{ return v; }
+	/ v:Integer 					{ return v; }
+	/ v:String 						{ return v; }
+	/ v:Ident 						{ return v; }
+	/ '(' _ exp:Expression _ ')'	{ return exp; }
 
 Float
 	= val:float { return parseFloat(val); }
