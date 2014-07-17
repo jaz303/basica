@@ -10,7 +10,7 @@ It's based on Locomotive BASIC (as found on the Amstrad CPC) although 100% compa
 
 ## TODO
 
-  * IF
+  * <del>IF</del>
   * FOR
   * WHILE
   * expression parsing

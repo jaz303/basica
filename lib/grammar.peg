@@ -1,5 +1,11 @@
 /* Helpers */
 
+{
+	function makeGoto(line) {
+		return { type: "command", name: "GOTO", args: [line] };
+	}
+}
+
 _
     = [ \t]*
 
@@ -17,6 +23,9 @@ float
 
 integer
     = $ ( digit+ )
+
+function_name
+	= $( [a-zA-Z] [a-zA-Z0-9]* '$'? )
 
 TERM
 	= _ "\n"
@@ -59,23 +68,13 @@ IfStatement
 	}
 
 ConsequentPart
-	= [tT][hH][eE][nN] __ line:Integer _ {
-		return { type: "command", name: "GOTO", args: [line] };
-	}
-	/ [gG][oO][tT][oO] __ line:Integer _ {
-		return { type: "command", name: "GOTO", args: [line] };
-	}
-	/ [tT][hH][eE][nN] __ stmt:Statement {
-		return stmt;
-	}
+	= [tT][hH][eE][nN] __ line:Integer _ { return makeGoto(line); }
+	/ [gG][oO][tT][oO] __ line:Integer _ { return makeGoto(line); }
+	/ [tT][hH][eE][nN] __ stmt:Statement { return stmt; }
 
 ElsePart
-	= [eE][lL][sS][eE] __ line:Integer _ {
-		return { type: "command", name: "GOTO", args: [line] };
-	}
-	/ [eE][lL][sS][eE] __ stmt:Statement {
-		return stmt;
-	}
+	= [eE][lL][sS][eE] __ line:Integer _ { return makeGoto(line); }
+	/ [eE][lL][sS][eE] __ stmt:Statement { return stmt; }
 
 AssignStatement
 	= left:Ident _ '=' _ right:Expression _ {
@@ -94,7 +93,7 @@ VariableName
 
 CommandName
 	= name:$( [a-zA-Z] [a-zA-Z0-9]* ) {
-		return name.toUpperCase();A
+		return name.toUpperCase();
 	}
 
 ArgList
@@ -102,14 +101,49 @@ ArgList
 		return [head].concat(tail.map(function(t) { return t[2]; }));
 	}
 
-FunctionArgs
-	= '(' _ args:ArgList ')' _ { return args; }
-
 Expression
+	= AdditiveExpression
+
+AdditiveExpression
+	= head:IntegerDivisionExpression tail:([-+] _ IntegerDivisionExpression)* {
+		return head;
+	}
+
+IntegerDivisionExpression
+	= head:MultiplicativeExpression tail:("\\" _ MultiplicativeExpression)* {
+		return head;
+	}
+
+MultiplicativeExpression
+	= head:UnaryExpression tail:([*/] _ UnaryExpression)* {
+		return head;
+	}
+
+UnaryExpression
+	= [nN][oO][tT] __ exp:UnaryExpression {
+		return { type: "not", exp: exp };
+	}
+	/ '-' _ exp:UnaryExpression {
+		return { type: "negate", exp: exp };
+	}
+	/ v:FunctionCall _ { return v; }
+
+FunctionCall
+	= name:function_name '(' _ args:ArgList ')' _ {
+		return {
+			type: "function-call",
+			name: name.toUpperCase(),
+			args: args
+		};
+	}
+	/ Atom
+
+Atom
 	= Float
 	/ Integer
 	/ String
 	/ Ident
+	/ '(' _ exp:Expression _ ')' _ { return exp; }
 
 Float
 	= val:float { return parseFloat(val); }
