@@ -13,4 +13,4 @@ It's based on Locomotive BASIC (as found on the Amstrad CPC) although 100% compa
   * <del>IF</del>
   * FOR
   * WHILE
-  * expression parsing
+  * <del>expression parsing</del>
