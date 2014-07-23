@@ -66,9 +66,18 @@ Machine.prototype.evaluate = function(konsole, command) {
             this.program.insertLine(parsed.line, parsed.statements);
             konsole.newline();
         } else {
-            this.evalStatements(parsed.statements);
+            // TODO: this is all wrong; needs to be turned into a Program and executed.
+            // (so that immediate code can support WHILE, FOR)
+            for (var i = 0; i < parsed.statements.length; ++i) {
+                this.execStatement(parsed.statements[i]);
+                // if we're running after executing a statement it means
+                // a jump was encountered.
+                if (this.running) {
+                    break;
+                }
+            }
             if (!this.running) {
-                this.newCommand();  
+                this.newCommand();
             }
         }
 
@@ -107,8 +116,6 @@ Machine.prototype.jump = function(line) {
         this.pc = this.program.indexOfLine(line);
     }
 
-    this.jumped = true;
-
     if (!this.running) {
         this.start();
     }
@@ -127,21 +134,22 @@ Machine.prototype.start = function() {
 
     var _tick = function() {
 
-        if (!this.running) {
-            this.newCommand();
-            return;
+        var batch = 20;
+
+        while (this.running && batch--) {
+            var stmt = this.program.getStatementAtIndex(this.pc++);
+            if (!stmt) {
+                this.running = false;
+            } else {
+                this.execStatement(stmt);
+            }
         }
 
-        this.jumped = false;
-
-        var stmts = this.program.getLineAtIndex(this.pc++);
-        if (!stmts) {
-            this.running = false;
+        if (this.running) {
+            setTimeout(_tick, 0);    
         } else {
-            this.evalStatements(stmts);
+            this.newCommand();
         }
-
-        setTimeout(_tick, 0);
 
     }.bind(this);
 
@@ -161,14 +169,9 @@ Machine.prototype.command = function(name, fn, vararg) {
     this.types[name] = COMMAND;
 }
 
-Machine.prototype.evalStatements = function(stmts) {
-	try {
-        for (var i = 0; i < stmts.length; ++i) {
-            this.evalStatement(stmts[i]);
-            if (this.jumped) {
-                return;
-            }
-        }
+Machine.prototype.execStatement = function(stmt) {
+    try {
+        this.evalStatement(stmt);
     } catch (e) {
         if (e === E.SYNTAX_ERROR || e === E.TYPE_MISMATCH || e === E.NO_SUCH_LINE) {
             this.printError(e);
@@ -364,8 +367,11 @@ module.exports = Program;
 
 var E = require('./errors');
 
+var splice = Array.prototype.splice;
+
 function Program() {
-    this.lines = [];
+    this.numbers = [];
+    this.statements = [];
     this.lineMax = -1;
     this.index = null;
     this.dirty = true;
@@ -374,22 +380,35 @@ function Program() {
 Program.prototype.insertLine = function(number, statements) {
     this.dirty = true;
     if (number > this.lineMax) {
-        this.lines.push([number, statements]);
+        this._insertLineAtIndex(this.statements.length, 0, number, statements);
         this.lineMax = number;
-    } else if (number === this.lineMax) {
-        this.lines[this.lines.length-1][1] = statements;
     } else {
-        // TODO: binary search!
-        for (var i = 0; i < this.lines.length; ++i) {
-            if (number === this.lines[i][0]) {
-                this.lines[i][1] = statements;
+        var i = 0, remove = 0;
+        while (i < this.numbers.length) {
+            if (this.numbers[i] === number) {
+                var j = i + 1;
+                while (j < this.numbers.length && this.numbers[j] === null) ++j;
+                remove = j - i;
                 break;
-            } else if (number < this.lines[i][0]) {
-                this.lines.splice(i, 0, [number, statements]);
+            } else if (number < this.numbers[i]) {
                 break;
             }
+            i++;
         }
+        this._insertLineAtIndex(i, remove, number, statements);
     }
+
+    console.log(this);
+}
+
+Program.prototype._insertLineAtIndex = function(ix, remove, lineNumber, statements) {
+
+    var numbers = statements.map(function(s) { return null; });
+    numbers[0] = lineNumber;
+    splice.apply(this.numbers, [ix, remove].concat(numbers));
+
+    splice.apply(this.statements, [ix, remove].concat(statements));
+
 }
 
 Program.prototype.indexOfLine = function(line) {
@@ -400,16 +419,15 @@ Program.prototype.indexOfLine = function(line) {
     return ix;
 }
 
-Program.prototype.getLineAtIndex = function(index) {
-    var line = this.lines[index];
-    return line ? line[1] : null;
+Program.prototype.getStatementAtIndex = function(index) {
+    return this.statements[index];
 }
 
 Program.prototype.reindex = function() {
 
     this.index = {};
-    this.lines.forEach(function(ln, ix) {
-        this.index[ln[0]] = ix;
+    this.numbers.forEach(function(ln, ix) {
+        if (ln) this.index[ln] = ix;
     }, this);
 
     this.dirty = false;
