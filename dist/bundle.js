@@ -4051,7 +4051,7 @@ function extend(things) {
 },{"./impl/classes":9,"./impl/events":10,"./impl/layout":11,"./impl/matches_selector":12,"./impl/node":13,"./impl/text":14,"./impl/viewport":15}],17:[function(require,module,exports){
 module.exports={
   "name": "basica",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "BASIC interpreter",
   "main": "index.js",
   "dependencies": {
