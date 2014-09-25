@@ -67,6 +67,8 @@ Statements
 
 Statement
 	= IfStatement
+	/ WhileStatement
+	/ WendStatement
 	/ AssignStatement
 	/ CommandStatement
 
@@ -88,6 +90,21 @@ ConsequentPart
 ElsePart
 	= [eE][lL][sS][eE] __ line:Integer _ { return makeGoto(line); }
 	/ [eE][lL][sS][eE] __ stmt:Statement { return stmt; }
+
+WhileStatement
+	= [wW][hH][iI][lL][eE] __ exp:Expression _ {
+		return {
+			type: "while",
+			condition: exp
+		};
+	}
+
+WendStatement
+	= [wW][eE][nN][dD] _ {
+		return {
+			type: "wend"
+		};
+	}
 
 AssignStatement
 	= left:Ident _ '=' _ right:Expression _ {
