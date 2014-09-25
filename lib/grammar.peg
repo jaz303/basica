@@ -69,6 +69,8 @@ Statement
 	= IfStatement
 	/ WhileStatement
 	/ WendStatement
+	/ ForStatement
+	/ NextStatement
 	/ AssignStatement
 	/ CommandStatement
 
@@ -103,6 +105,32 @@ WendStatement
 	= [wW][eE][nN][dD] _ {
 		return {
 			type: "wend"
+		};
+	}
+
+ForStatement
+	= [fF][oO][rR] __ v:VariableName _ '=' start:Integer __ 'TO' __ end:Integer step:(__ [sS][tT][eE][pP] __ '-'? Integer)? _ {
+		var s = 1;
+		if (step) {
+			s = step[7];
+			if (step[6] === '-') {
+				s = -s;
+			}
+		}
+
+		return {
+			type: "for",
+			start: start,
+			end: end,
+			step: s
+		};
+	}
+
+NextStatement
+	= [nN][eE][xX][tT] v:(__ VariableName)? _ {
+		return {
+			type: "next",
+			variable: v ? v[1] : null
 		};
 	}
 
